@@ -1,4 +1,4 @@
-package com.althaus.dev.backend.chat.backend_chat;
+package com.althaus.dev.backend.chat.app;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
