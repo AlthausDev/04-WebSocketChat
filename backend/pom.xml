@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.althaus.dev.backend.chat</groupId>
-	<artifactId>02-WebSocketChat</artifactId>
+	<artifactId>04-WebSocketChat</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>02-WebSocketChat</name>
+	<name>04-WebSocketChat</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>
