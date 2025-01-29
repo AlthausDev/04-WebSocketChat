@@ -2,7 +2,7 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <annotationProcessing>
-      <profile name="Annotation profile for 02-WebSocketChat" enabled="true">
+      <profile name="Annotation profile for 04-WebSocketChat" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
@@ -10,6 +10,7 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/unknown/lombok-unknown.jar" />
         </processorPath>
         <module name="02-WebSocketChat" />
+        <module name="04-WebSocketChat" />
         <module name="backend-chat" />
       </profile>
     </annotationProcessing>
@@ -17,6 +18,7 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="02-WebSocketChat" options="-parameters" />
+      <module name="04-WebSocketChat" options="-parameters" />
       <module name="backend-chat" options="-parameters" />
     </option>
   </component>
