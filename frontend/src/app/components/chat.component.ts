@@ -17,7 +17,7 @@ export class ChatComponent implements OnInit{
   ngOnInit(): void {
     this.client = new Stomp.Client({
       brokerURL: undefined,
-      webSocketFactory: () => new SockJS('http//:localhost:8080/chat'),
+      webSocketFactory: () => new SockJS('http://localhost:8080/chat'),
       debug: str => console.log(str),
       reconnectDelay: 5000
     });
