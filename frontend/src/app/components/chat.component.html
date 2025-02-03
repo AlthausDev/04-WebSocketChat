@@ -1,4 +1,4 @@
-<div class="card">
+<div class="card m-4">
     <div class="card-header">
         <ul class="nav nav-pills card-header-pills">
             <li class="nav-item" *ngIf="!connected">
@@ -14,10 +14,22 @@
         </ul>
     </div>
     <div class="card-body" style="overflow-y: scroll; height: 360px;" *ngIf="connected">
-
+        <ul class="list-group">
+        <li class="list-group-item list-group-item-light" *ngFor="let message of messages">
+            {{message.date | date: 'shortTime'}}: {{message.text}}
+        </li>
+    </ul>
     </div>
-    <div class="car-footer">
-        <input class="form-control">
-        <button class="btn btn-primary">Enviar</button>
+    <div class="car-footer" *ngIf="connected">
+        <form (ngSubmit)="onSendMessage()">
+            <div class="row">
+                <div class="col">                    
+                    <input class="form-control" name="text" [(ngModel)]="message.text">
+                </div>
+                <div class="col">      
+                    <button type="submit" class="btn btn-primary">Enviar</button>
+                </div>
+            </div>  
+    </form>
     </div>
 </div>

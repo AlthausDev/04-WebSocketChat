@@ -1,4 +1,4 @@
-export class message{
+export class Message{
     text: string = ''
     date!: Date;
 }

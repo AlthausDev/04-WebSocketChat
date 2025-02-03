@@ -13,7 +13,7 @@ public class ChatController {
     @MessageMapping("/message")
     @SendTo("/topic/message")
     public Message receiveMessage(Message message) {
-        message.setTimestamp(new Date().getTime());
+        message.setDate(new Date().getTime());
         message.setText("Received: " + message.getText());
 
         return message;
