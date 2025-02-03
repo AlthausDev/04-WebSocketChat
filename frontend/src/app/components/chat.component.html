@@ -1,1 +1,23 @@
-<p>chat works!</p>
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-pills card-header-pills">
+            <li class="nav-item" *ngIf="!connected">
+                <button class="btn btn-success" type="button" (click)="connect()">
+                    Conectar
+                </button>
+            </li>
+            <li class="nav-item" *ngIf="connected">
+                <button class="btn btn-warning" type="button" (click)="disconnect()">
+                    Desconectar
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body" style="overflow-y: scroll; height: 360px;" *ngIf="connected">
+
+    </div>
+    <div class="car-footer">
+        <input class="form-control">
+        <button class="btn btn-primary">Enviar</button>
+    </div>
+</div>

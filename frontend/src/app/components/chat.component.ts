@@ -31,7 +31,13 @@ export class ChatComponent implements OnInit{
       this.connected = false;
       console.log(`Desconectados: ${this.client.connected} : ${frame}`)    
     }
+  }
 
+  connect(): void {
     this.client.activate();
- }
+  }
+
+  disconnect(): void {
+    this.client.deactivate();
+  } 
 } 
