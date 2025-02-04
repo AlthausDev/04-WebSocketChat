@@ -1,20 +1,60 @@
 package com.althaus.dev.backend.chat.app.model;
 
-public class Message {
+import java.time.Instant;
 
+public class Message {
     private String text;
-    private Long Date;
+    private Instant date;
+    private String username;
+    private String type;
+
+    public Message() {}
+
+    public Message(String text, Instant date, String username, String type) {
+        this.text = text;
+        this.date = date;
+        this.username = username;
+        this.type = type;
+    }
 
     public String getText() {
         return text;
     }
+
     public void setText(String text) {
         this.text = text;
     }
-    public Long getDate() {
-        return Date;
+
+    public Instant getDate() {
+        return date;
     }
-    public void setDate(Long date) {
-        Date = date;
+
+    public String getType() {
+        return type;
+    }
+
+    public void setDate(Instant date) {
+        this.date = date;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    @Override
+    public String toString() {
+        return "Message{" +
+                "text='" + text + '\'' +
+                ", date=" + date +
+                ", username='" + username + '\'' +
+                '}';
     }
 }
