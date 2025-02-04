@@ -17,9 +17,15 @@
         </ul>
     </div>
     <div class="card-body" style="overflow-y: scroll; height: 360px;" *ngIf="connected">
-        <ul class="list-group">
+        <ul class="list-group">            
         <li class="list-group-item list-group-item-light" *ngFor="let message of messages">
-            {{message.date | date: 'shortTime'}} - {{message.username}}: {{message.text}}
+            @if (message.type == 'NEW_USER') {
+                {{message.date | date: 'shortTime'}}: {{message.text}} &#64; <span [ngStyle]="{'color': message.color}">{{message.username}}</span>
+
+            }
+            @else if(message.type == 'MESSAGE'){
+                {{message.date | date: 'shortTime'}} <span [ngStyle]="{'color': message.color}">{{message.username}}</span> dice: {{message.text}}
+            }                
         </li>
     </ul>
     </div>

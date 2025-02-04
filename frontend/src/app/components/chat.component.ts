@@ -61,7 +61,7 @@ export class ChatComponent implements OnInit{
   } 
 
   onSendMessage(){    
-    this.message.type = 'MESSAGE'
+    this.message.type = 'MESSAGE';
     this.client.publish ({
       destination: '/app/message',
       body: JSON.stringify(this.message)

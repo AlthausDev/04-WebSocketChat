@@ -7,6 +7,7 @@ public class Message {
     private Instant date;
     private String username;
     private String type;
+    private String color;
 
     public Message() {}
 
@@ -33,6 +34,9 @@ public class Message {
         return type;
     }
 
+    public String getColor() {
+        return color;
+    }
     public void setDate(Instant date) {
         this.date = date;
     }
@@ -47,6 +51,10 @@ public class Message {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
     }
 
     @Override
