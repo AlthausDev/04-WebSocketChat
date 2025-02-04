@@ -7,10 +7,11 @@ import SockJS from 'sockjs-client';
 
 @Component({
   selector: 'app-chat',
+  standalone: true,
   imports: [FormsModule, CommonModule],
   templateUrl: './chat.component.html'
 })
-export class ChatComponent implements OnInit{
+export class ChatComponent implements OnInit {
   
   client!: Stomp.Client;
   connected: boolean = false;
@@ -22,34 +23,43 @@ export class ChatComponent implements OnInit{
     this.client = new Stomp.Client({
       brokerURL: undefined,
       webSocketFactory: () => new SockJS('http://localhost:8080/chat'),
-      debug: str => console.log(str),
+      debug: (str) => console.log(str),
       reconnectDelay: 5000
     });
 
     this.client.onConnect = (frame) => {
       this.connected = true;
-      console.log(`Conectados: ${this.client.connected} : ${frame}`)
+      console.log(`Conectados: ${this.client.connected} : ${frame}`);
 
-      this.client.subscribe('/topic/message', e => {
-        console.log(e.body)
-        let message: Message = JSON.parse(e.body) as Message;
-        message.date = new Date(message.date)
-        this.messages.push(message);
-      })
+      this.client.subscribe('/topic/message', (e) => {
+        console.log(e.body);
+        let receivedMessage: Message = JSON.parse(e.body) as Message;
+        receivedMessage.date = new Date(receivedMessage.date);
+        this.messages.push(receivedMessage);
+
+        // Si el usuario recién conectado aún no tiene color, asignarlo
+        if (
+          this.message.username === receivedMessage.username &&
+          !this.message.color &&
+          receivedMessage.type === 'NEW_USER'
+        ) {
+          this.message.color = receivedMessage.color;
+        }
+      });
 
       this.message.type = 'NEW_USER';
       this.client.publish({
         destination: '/app/message',
         body: JSON.stringify(this.message)
-      })
-    }
+      });
+    };
 
     this.client.onDisconnect = (frame) => {
       this.connected = false;
       this.message = new Message();
       this.messages = [];
-      console.log(`Desconectados: ${!this.client.connected} : ${frame}`)    
-    }
+      console.log(`Desconectados: ${!this.client.connected} : ${frame}`);
+    };
   }
 
   connect(): void {
@@ -58,14 +68,17 @@ export class ChatComponent implements OnInit{
 
   disconnect(): void {
     this.client.deactivate();
-  } 
+  }
 
-  onSendMessage(){    
+  onSendMessage(): void {    
+    if (!this.message.text?.trim()) return; // Evita mensajes vacíos
     this.message.type = 'MESSAGE';
-    this.client.publish ({
+    
+    this.client.publish({
       destination: '/app/message',
       body: JSON.stringify(this.message)
     });
-    this.message.text = '';
+
+    this.message.text = ''; // Limpiar el campo de texto
   }
-} 
+}

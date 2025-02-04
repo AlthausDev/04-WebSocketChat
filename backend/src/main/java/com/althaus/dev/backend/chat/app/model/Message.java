@@ -11,11 +11,12 @@ public class Message {
 
     public Message() {}
 
-    public Message(String text, Instant date, String username, String type) {
+    public Message(String text, Instant date, String username, String type, String color) {
         this.text = text;
         this.date = date;
         this.username = username;
         this.type = type;
+        this.color = color;
     }
 
     public String getText() {

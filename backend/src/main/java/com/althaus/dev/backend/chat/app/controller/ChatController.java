@@ -5,6 +5,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
 import java.time.Instant;
+import java.util.Random;
 
 @Controller
 public class ChatController {
@@ -15,7 +16,7 @@ public class ChatController {
     @SendTo("/topic/message")
     public Message receiveMessage(Message message) {
         if ("NEW_USER".equals(message.getType())) {
-            message.setColor(colors[(int) Math.floor(Math.random() * colors.length)]);
+            message.setColor(this.colors[new Random().nextInt(this.colors.length)]);
             message.setText("Nuevo usuario conectado");
         }
 
@@ -23,7 +24,8 @@ public class ChatController {
                 message.getText(),
                 Instant.now(),
                 message.getUsername(),
-                message.getType()
+                message.getType(),
+                message.getColor()
         );
     }
 }
