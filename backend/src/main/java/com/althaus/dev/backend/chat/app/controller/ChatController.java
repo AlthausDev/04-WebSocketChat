@@ -3,6 +3,7 @@ package com.althaus.dev.backend.chat.app.controller;
 import com.althaus.dev.backend.chat.app.model.Message;
 import com.althaus.dev.backend.chat.app.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -23,7 +24,7 @@ public class ChatController {
     @Autowired
     private SimpMessagingTemplate webSocket;
 
-    public ChatController(MessageService service) {
+    public ChatController(@Qualifier("messageServiceMongo") MessageService service) {
         this.service = service;
     }
 
@@ -39,6 +40,7 @@ public class ChatController {
         }
 
         return new Message(
+                message.getId(),
                 message.getText(),
                 Instant.now(),
                 message.getUsername(),

@@ -1,8 +1,15 @@
 package com.althaus.dev.backend.chat.app.model;
 
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.Instant;
 
+@Document(collection = "messages")
 public class Message {
+
+    @Id
+    private String id;
     private String text;
     private Instant date;
     private String username;
@@ -11,12 +18,17 @@ public class Message {
 
     public Message() {}
 
-    public Message(String text, Instant date, String username, String type, String color) {
+    public Message(String id, String text, Instant date, String username, String type, String color) {
+        this.id = id;
         this.text = text;
         this.date = date;
         this.username = username;
         this.type = type;
         this.color = color;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getText() {
@@ -44,6 +56,10 @@ public class Message {
 
     public String getUsername() {
         return username;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public void setUsername(String username) {
