@@ -19,6 +19,8 @@ export class ChatComponent implements OnInit {
   messages: Message[] = [];
   message: Message = new Message();
 
+  typing!: string;
+
   ngOnInit(): void {
     this.client = new Stomp.Client({
       brokerURL: undefined,
@@ -47,6 +49,11 @@ export class ChatComponent implements OnInit {
         }
       });
 
+      this.client.subscribe('/topic/typing', event => {
+        this.typing = event.body;
+        setTimeout(() => this.typing = '', 3000)
+      });
+
       this.message.type = 'NEW_USER';
       this.client.publish({
         destination: '/app/message',
@@ -71,7 +78,7 @@ export class ChatComponent implements OnInit {
   }
 
   onSendMessage(): void {    
-    if (!this.message.text?.trim()) return; // Evita mensajes vacíos
+    if (!this.message.text?.trim()) return; 
     this.message.type = 'MESSAGE';
     
     this.client.publish({
@@ -79,6 +86,13 @@ export class ChatComponent implements OnInit {
       body: JSON.stringify(this.message)
     });
 
-    this.message.text = ''; // Limpiar el campo de texto
+    this.message.text = ''; 
+  }
+
+  onTypingEvent(): void {
+    this.client.publish({
+      destination: '/app/typing',
+      body: this.message.username
+    })
   }
 }

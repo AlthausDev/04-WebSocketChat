@@ -28,4 +28,10 @@ public class ChatController {
                 message.getColor()
         );
     }
+
+    @MessageMapping("/typing")
+    @SendTo("/topic/typing")
+    public String isTyping(String username) {
+        return username.concat(" está escribiendo ...");
+    }
 }
