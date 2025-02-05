@@ -20,6 +20,11 @@ export class ChatComponent implements OnInit {
   message: Message = new Message();
 
   typing!: string;
+  clientId!: string;
+
+  constructor(){
+    this.clientId = 'id-' + new Date().getTime() + '-' + Math.random().toString(36).substring(2);
+  }
 
   ngOnInit(): void {
     this.client = new Stomp.Client({
@@ -52,6 +57,17 @@ export class ChatComponent implements OnInit {
       this.client.subscribe('/topic/typing', event => {
         this.typing = event.body;
         setTimeout(() => this.typing = '', 3000)
+      });
+
+      console.log('clientId' + this.clientId)
+      this.client.subscribe(`/topic/history/${this.clientId}`, event =>{
+          const histories = JSON.parse(event.body) as Message[];
+          this.messages = histories;
+      });
+
+      this.client.publish({
+        destination: '/app/history', 
+        body: this.clientId
       });
 
       this.message.type = 'NEW_USER';
