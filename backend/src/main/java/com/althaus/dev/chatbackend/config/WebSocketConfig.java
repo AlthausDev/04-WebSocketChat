@@ -10,16 +10,21 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private static final String CHAT_ENDPOINT = "/chat";
+    private static final String FRONTEND_ORIGIN = "http://localhost:4200";
+    private static final String MESSAGE_PREFIX = "/app";
+    private static final String SUBSCRIPTION_PREFIX = "/topic/";
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/chat")
-                .setAllowedOrigins("http://localhost:4200")
+        registry.addEndpoint(CHAT_ENDPOINT)
+                .setAllowedOrigins(FRONTEND_ORIGIN)
                 .withSockJS();
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic/");
-        registry.setApplicationDestinationPrefixes("/app");
+        registry.enableSimpleBroker(SUBSCRIPTION_PREFIX);
+        registry.setApplicationDestinationPrefixes(MESSAGE_PREFIX);
     }
 }

@@ -4,6 +4,7 @@ import com.althaus.dev.chatbackend.domain.model.Message;
 import com.althaus.dev.chatbackend.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -20,30 +21,40 @@ public class ChatWebSocketController {
     @Autowired
     private SimpMessagingTemplate webSocket;
 
-    public ChatWebSocketController(@Qualifier("messageServiceMongo") MessageService service) {
+    public ChatWebSocketController(MessageService service) {
         this.service = service;
     }
-
 
     @MessageMapping("/message")
     @SendTo("/topic/message")
     public Message receiveMessage(Message message) {
+
+        Instant timestamp = Instant.now();
+
         if ("NEW_USER".equals(message.getType())) {
-            message.setColor(this.colors[new Random().nextInt(this.colors.length)]);
-            message.setText("Nuevo usuario conectado");
-        } else{
-            service.saveMessage(message);
+            return new Message(
+                    message.getId(),
+                    "Nuevo usuario conectado",
+                    timestamp,
+                    message.getUsername(),
+                    message.getType(),
+                    colors[new Random().nextInt(colors.length)]
+            );
         }
 
-        return new Message(
+        Message savedMessage = new Message(
                 message.getId(),
                 message.getText(),
-                Instant.now(),
+                timestamp,
                 message.getUsername(),
                 message.getType(),
                 message.getColor()
         );
+
+        service.saveMessage(savedMessage);
+        return savedMessage;
     }
+
 
     @MessageMapping("/typing")
     @SendTo("/topic/typing")
@@ -53,6 +64,11 @@ public class ChatWebSocketController {
 
     @MessageMapping("/history")
     public void getHistory(String clientId) {
-        webSocket.convertAndSend("/topic/history/".concat(clientId), service.getMessages());
+        int page = 0;
+        int size = 10;
+
+        var messages = service.getMessages(PageRequest.of(page, size)).getContent();
+        webSocket.convertAndSend("/topic/history/" + clientId, messages);
     }
+
 }
