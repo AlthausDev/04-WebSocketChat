@@ -53,37 +53,48 @@ export class ChatService {
             console.error("❌ Intentando suscribirse sin conexión WebSocket.");
             return;
         }
-
+    
         this.client.subscribe("/topic/message", (event: Frame) => {
             console.log("📩 Mensaje recibido:", event.body);
             this.handleIncomingMessage(event);
         });
     }
+    
 
     private handleIncomingMessage(event: Frame): void {
         let receivedMessage: Message = JSON.parse(event.body) as Message;
         receivedMessage.date = new Date(receivedMessage.date);
-
-        this.messages.push(receivedMessage); // ✅ Se actualiza `messages`
-        console.log("📌 Mensajes actualizados:", this.messages);
-    }
-
-    getMessages(): Message[] {
-        return this.messages; // ✅ Devuelve `messages` como un array normal
-    }
-
-    isConnected(): boolean {
-        return this.connected; // ✅ Devuelve `connected` como un booleano normal
-    }
-
-    sendMessage(message: Message): void {
-        if (this.client && this.client.connected) {
-            this.client.publish({
-                destination: "/app/message",
-                body: JSON.stringify(message)
-            });
+    
+        if (receivedMessage.type === 'MESSAGE') { // ✅ Solo agregar mensajes normales
+            this.messages.push(receivedMessage);
+            console.log("📌 Mensaje agregado:", receivedMessage);
         } else {
-            console.error("❌ No se pudo enviar el mensaje. WebSocket desconectado.");
+            console.log(`📝 Evento recibido (${receivedMessage.type}):`, receivedMessage);
         }
     }
+    
+
+    
+    sendMessage(message: Message): void {
+        if (!this.client || !this.client.connected) {
+            console.error("❌ No se pudo enviar el mensaje. WebSocket desconectado.");
+            return;
+        }
+    
+        if (message.type !== 'MESSAGE') {
+            console.warn("⚠️ Solo se permiten mensajes de chat. Ignorando:", message);
+            return;
+        }
+    
+        if (!message.text.trim()) {
+            console.warn("⚠️ No se puede enviar un mensaje vacío.");
+            return;
+        }
+    
+        this.client.publish({
+            destination: "/app/message",
+            body: JSON.stringify(message)
+        });
+    }
+    
 }
