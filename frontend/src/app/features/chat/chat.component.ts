@@ -21,7 +21,7 @@ export class ChatComponent implements OnInit {
   constructor(private chatService: ChatService) {}
 
   ngOnInit(): void {
-    this.messages = this.chatService.messages; // ✅ Mensajes listos cuando el usuario se conecte
+    this.messages = this.chatService.messages; // ✅ Carga el historial y mensajes en tiempo real
   }
 
   connect(): void {
@@ -30,52 +30,50 @@ export class ChatComponent implements OnInit {
         return;
     }
 
-    this.chatService.connect();
-    this.connected = true; // ✅ Se actualiza `connected` cuando el usuario presiona "Conectar"
+    this.chatService.connect(this.message.username);
+    this.connected = true;
   }
 
   disconnect(): void {
     this.chatService.disconnect();
-    this.connected = false; // ✅ Se actualiza `connected` cuando el usuario presiona "Desconectar"
+    this.connected = false;
   }
 
   onSendMessage(): void {
-    if (!this.message.text?.trim()) return; // ✅ Evita enviar mensajes vacíos
+    if (!this.message.text?.trim()) return;
 
     const newMessage: Message = {
         type: 'MESSAGE',
         username: this.message.username,
         text: this.message.text,
         date: new Date(),
-        color: this.message.color
+        color: this.chatService.userColors.get(this.message.username) || "black"
     };
 
-    this.chatService.sendMessage(newMessage); // ✅ Enviar mensaje sin modificar `messages`
-
-    this.message.text = ''; // ✅ Limpiar input después de enviar
-}
-
-onTypingEvent(): void {
-  if (!this.message.username) return;
-
-  if (this.typingTimeout) {
-      clearTimeout(this.typingTimeout);
+    this.chatService.sendMessage(newMessage);
+    this.message.text = ''; // ✅ Limpia el input después de enviar
   }
 
-  if (!this.typing) {
-      this.typing = `${this.message.username} está escribiendo...`;
-      this.chatService.sendMessage({
-        type: 'TYPING',
-        username: this.message.username,
-        date: new Date(),
-        text: '',
-        color: ''
-      });
+  onTypingEvent(): void {
+    if (!this.message.username) return;
+
+    if (this.typingTimeout) {
+        clearTimeout(this.typingTimeout);
+    }
+
+    if (!this.typing) {
+        this.typing = `${this.message.username} está escribiendo...`;
+        this.chatService.sendMessage({
+          type: 'TYPING',
+          username: this.message.username,
+          date: new Date(),
+          text: '',
+          color: ''
+        });
+    }
+
+    this.typingTimeout = setTimeout(() => {
+        this.typing = ''; 
+    }, 3000);
   }
-
-  this.typingTimeout = setTimeout(() => {
-      this.typing = ''; 
-  }, 3000);
-}
-
 }
