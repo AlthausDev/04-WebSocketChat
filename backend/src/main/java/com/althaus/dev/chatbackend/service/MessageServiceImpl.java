@@ -24,9 +24,9 @@ public class MessageServiceImpl implements MessageService {
     @Override
     @Transactional
     public void saveMessage(Message message) {
-        if (message == null || message.getText() == null || message.getText().trim().isEmpty()) {
-            throw new IllegalArgumentException("El mensaje no puede estar vacío.");
-        }
+//        if (message == null || message.getText() == null || message.getText().trim().isEmpty()) {
+//            throw new IllegalArgumentException("El mensaje no puede estar vacío.");
+//        }
         messageRepository.save(message);
     }
 }
