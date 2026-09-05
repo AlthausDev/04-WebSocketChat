@@ -9,6 +9,20 @@ Proyecto full-stack de chat en tiempo real construido como práctica de comunica
 
 El proyecto utiliza WebSocket como base de comunicación y separa claramente frontend y backend para poder trabajar y desplegar cada parte de forma independiente.
 
+## Flujo general
+
+```text
+Angular client
+   ⇅
+WebSocket connection
+   ⇅
+Backend
+   ⇅
+Message / connection handling
+```
+
+La intención es mantener la comunicación en tiempo real como una responsabilidad explícita y no esconderla detrás de una arquitectura excesiva para el tamaño del ejercicio.
+
 ## Objetivo
 
 El repositorio sirve como ejercicio práctico sobre:
@@ -21,6 +35,10 @@ El repositorio sirve como ejercicio práctico sobre:
 ## Desarrollo
 
 Cada módulo mantiene su propia configuración y dependencias. Para trabajar con el proyecto, instala las dependencias del frontend desde `frontend/` y ejecuta el backend desde `backend/` con las herramientas definidas en cada módulo.
+
+## Estado
+
+Proyecto de formación conservado como referencia técnica. Las dependencias de la rama principal se mantienen razonablemente actualizadas cuando aparecen alertas de seguridad relevantes.
 
 ## Licencia
 
