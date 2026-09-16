@@ -1,80 +1,67 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatService } from './chat.service';
+import { Subscription } from 'rxjs';
+
 import { Message } from '../../model/message';
+import { ChatService } from './chat.service';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
   imports: [FormsModule, CommonModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
-  templateUrl: './chat.component.html'
+  templateUrl: './chat.component.html',
+  styleUrl: './chat.component.css'
 })
-export class ChatComponent implements OnInit {
-  
-  connected: boolean = false;
-  messages: Message[] = [];
-  message: Message = new Message();
-  typing: string = '';
-  typingTimeout!: ReturnType<typeof setTimeout>;
+export class ChatComponent implements OnInit, OnDestroy {
 
-  constructor(private chatService: ChatService) {}
+  connected = false;
+  readonly messages = this.chatService.messages;
+  message: Message = new Message();
+  typing = '';
+
+  private readonly subscriptions = new Subscription();
+
+  constructor(private readonly chatService: ChatService) {}
 
   ngOnInit(): void {
-    this.messages = this.chatService.messages; // ✅ Carga el historial y mensajes en tiempo real
+    this.subscriptions.add(
+      this.chatService.connected$.subscribe(connected => this.connected = connected)
+    );
+    this.subscriptions.add(
+      this.chatService.typing$.subscribe(typing => this.typing = typing)
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    this.chatService.disconnect();
   }
 
   connect(): void {
-    if (!this.message.username.trim()) {
-        console.error("❌ Debes escribir un nombre de usuario antes de conectarte.");
-        return;
+    const username = this.message.username.trim();
+    if (!username) {
+      return;
     }
 
-    this.chatService.connect(this.message.username);
-    this.connected = true;
+    this.message.username = username;
+    this.chatService.connect(username);
   }
 
   disconnect(): void {
     this.chatService.disconnect();
-    this.connected = false;
   }
 
   onSendMessage(): void {
-    if (!this.message.text?.trim()) return;
+    if (!this.message.text?.trim()) {
+      return;
+    }
 
-    const newMessage: Message = {
-        type: 'MESSAGE',
-        username: this.message.username,
-        text: this.message.text,
-        date: new Date(),
-        color: this.chatService.userColors.get(this.message.username) || "black"
-    };
-
-    this.chatService.sendMessage(newMessage);
-    this.message.text = ''; // ✅ Limpia el input después de enviar
+    this.chatService.sendMessage(this.message);
+    this.message.text = '';
   }
 
   onTypingEvent(): void {
-    if (!this.message.username) return;
-
-    if (this.typingTimeout) {
-        clearTimeout(this.typingTimeout);
-    }
-
-    if (!this.typing) {
-        this.typing = `${this.message.username} está escribiendo...`;
-        this.chatService.sendMessage({
-          type: 'TYPING',
-          username: this.message.username,
-          date: new Date(),
-          text: '',
-          color: ''
-        });
-    }
-
-    this.typingTimeout = setTimeout(() => {
-        this.typing = ''; 
-    }, 3000);
+    this.chatService.sendTyping();
   }
 }

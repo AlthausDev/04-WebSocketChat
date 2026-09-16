@@ -1,12 +1,10 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
-import { ChatComponent } from "./features/chat/chat.component";
+import { Component } from '@angular/core';
+import { ChatComponent } from './features/chat/chat.component';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [ChatComponent],
-  changeDetection: ChangeDetectionStrategy.Eager,
-  templateUrl: './app.component.html' 
+  templateUrl: './app.component.html'
 })
-
-export class AppComponent { 
-}
+export class AppComponent {}

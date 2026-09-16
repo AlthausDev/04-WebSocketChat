@@ -1,59 +1,91 @@
-<div class="card m-4">
-  <div class="card-header">
-    <ul class="nav nav-pills card-header-pills">
-      <li class="nav-item me-2">
-        <input [(ngModel)]="message.username" class="form-control" placeholder="Username" name="username">
-      </li>
-      @if (!connected) {
-        <li class="nav-item">
-          <button class="btn btn-success" type="button" (click)="connect()" [disabled]="!message.username">
+<main class="chat-shell">
+  <section class="card shadow-sm chat-card">
+    <header class="card-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="h4 mb-1">WebSocket Chat</h1>
+        <p class="text-secondary mb-0">Angular + STOMP + Spring Boot + MongoDB</p>
+      </div>
+      <span class="badge" [class.text-bg-success]="connected" [class.text-bg-secondary]="!connected">
+        {{ connected ? 'Conectado' : 'Desconectado' }}
+      </span>
+    </header>
+
+    <div class="card-body border-bottom">
+      <div class="input-group">
+        <input
+          [(ngModel)]="message.username"
+          class="form-control"
+          placeholder="Nombre de usuario"
+          name="username"
+          maxlength="40"
+          [disabled]="connected"
+          (keyup.enter)="connect()">
+
+        @if (!connected) {
+          <button
+            class="btn btn-success"
+            type="button"
+            (click)="connect()"
+            [disabled]="!message.username.trim()">
             Conectar
           </button>
-        </li>
-      }
-      @if (connected) {
-        <li class="nav-item">
-          <button class="btn btn-warning" type="button" (click)="disconnect()">
+        } @else {
+          <button class="btn btn-outline-danger" type="button" (click)="disconnect()">
             Desconectar
           </button>
-        </li>
-      }
-    </ul>
-  </div>
-
-  <!-- Solo se muestra el chat si el usuario está conectado -->
-  @if (connected) {
-    <div>
-      <div class="card-body" style="overflow-y: scroll; height: 360px;">
-        <ul class="list-group">
-          @for (message of messages; track message) {
-            <li class="list-group-item list-group-item-light">
-              @if (message.type === 'NEW_USER') {
-                {{ message.date | date: 'shortTime' }}: {{ message.text }} &#64;<span [ngStyle]="{'color': message.color}">{{ message.username }}</span>
-              } @else {
-                {{ message.date | date: 'shortTime' }} <span
-              [ngStyle]="{'color': message.color}">{{ message.username }}</span> dice: <br/> {{ message.text }}
-            }
-          </li>
         }
-      </ul>
-    </div>
-    <div class="card-footer">
-      <form (ngSubmit)="onSendMessage()">
-        <div class="row">
-          <div class="col">
-            <input class="form-control" name="text" [(ngModel)]="message.text"
-              placeholder="Escribir mensaje..." (keyup)="onTypingEvent()">
-          </div>
-          <div class="col">
-            <button type="submit" class="btn btn-primary">Enviar</button>
-          </div>
-        </div>
-      </form>
-      <div>
-        {{ typing }}
       </div>
     </div>
-  </div>
-}
-</div>
+
+    @if (connected) {
+      <div class="chat-body" aria-live="polite">
+        @if (messages.length === 0) {
+          <div class="empty-state text-secondary">Todavía no hay mensajes.</div>
+        } @else {
+          <ul class="list-group list-group-flush">
+            @for (chatMessage of messages; track chatMessage.id ?? $index) {
+              <li class="list-group-item py-3">
+                @if (chatMessage.type === 'NEW_USER') {
+                  <div class="text-center text-secondary small">
+                    {{ chatMessage.date | date: 'shortTime' }} ·
+                    <span [ngStyle]="{'color': chatMessage.color}">{{ chatMessage.username }}</span>
+                    se ha conectado
+                  </div>
+                } @else {
+                  <div class="d-flex justify-content-between gap-3 mb-1">
+                    <strong [ngStyle]="{'color': chatMessage.color}">{{ chatMessage.username }}</strong>
+                    <time class="text-secondary small">{{ chatMessage.date | date: 'shortTime' }}</time>
+                  </div>
+                  <div class="message-text">{{ chatMessage.text }}</div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="card-footer">
+        <div class="typing-indicator text-secondary small" aria-live="polite">{{ typing }}</div>
+        <form (ngSubmit)="onSendMessage()">
+          <div class="input-group">
+            <input
+              class="form-control"
+              name="text"
+              [(ngModel)]="message.text"
+              maxlength="1000"
+              autocomplete="off"
+              placeholder="Escribe un mensaje..."
+              (input)="onTypingEvent()">
+            <button type="submit" class="btn btn-primary" [disabled]="!message.text.trim()">
+              Enviar
+            </button>
+          </div>
+        </form>
+      </footer>
+    } @else {
+      <div class="empty-state text-secondary">
+        Elige un nombre y conecta para entrar al chat.
+      </div>
+    }
+  </section>
+</main>

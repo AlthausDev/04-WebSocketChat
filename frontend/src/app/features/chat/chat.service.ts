@@ -1,124 +1,189 @@
-import { Injectable } from "@angular/core";
-import { Client, Frame } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { WEBSOCKET_URL } from "../../core/websocket.config";
-import { Message } from "../../model/message";
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+import { Client, Frame } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+
+import {
+    HISTORY_TOPIC,
+    MESSAGE_TOPIC,
+    REQUEST_HISTORY_DESTINATION,
+    SEND_MESSAGE_DESTINATION,
+    SEND_TYPING_DESTINATION,
+    TYPING_TOPIC,
+    WEBSOCKET_URL
+} from '../../core/websocket.config';
+import { Message } from '../../model/message';
 
 @Injectable({
     providedIn: 'root'
 })
 export class ChatService {
-    private client!: Client;
-    connected: boolean = false; 
-    messages: Message[] = [];  
-    userColors: Map<string, string> = new Map();
+    private client?: Client;
+    private username = '';
+    private typingTimeout?: ReturnType<typeof setTimeout>;
+    private readonly clientId = crypto.randomUUID();
 
-    private getRandomColor(): string {
-        const colors = ["red", "blue", "green", "orange", "purple", "yellow", "black"];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }
-    
-
-    constructor() {
-    }
+    readonly connected$ = new BehaviorSubject<boolean>(false);
+    readonly typing$ = new BehaviorSubject<string>('');
+    readonly messages: Message[] = [];
+    readonly userColors = new Map<string, string>();
 
     connect(username: string): void {
-        if (this.client && this.client.active) {
-            console.log("WebSocket ya está conectado.");
+        const normalizedUsername = username.trim();
+        if (!normalizedUsername || this.client?.active) {
             return;
         }
-    
+
+        this.username = normalizedUsername;
         this.client = new Client({
             webSocketFactory: () => new SockJS(WEBSOCKET_URL),
             reconnectDelay: 5000,
             onConnect: () => {
-                console.log("✅ Conexión establecida");
-                this.connected = true;
+                this.connected$.next(true);
                 this.subscribeToMessages();
-    
-                if (!this.userColors.has(username)) {
-                    this.userColors.set(username, this.getRandomColor());
-                }
-
-                this.sendMessage({
-                    type: "NEW_USER",
-                    username,
-                    text: "Nuevo usuario conectado",
-                    date: new Date(),
-                    color: this.userColors.get(username) || "black"
-                });
+                this.subscribeToTyping();
+                this.subscribeToHistory();
+                this.requestHistory();
+                this.announceUser();
             },
-            onDisconnect: () => {
-                console.log("❌ Desconectado");
-                this.connected = false;
-            },
+            onDisconnect: () => this.connected$.next(false),
+            onWebSocketClose: () => this.connected$.next(false),
             onStompError: (frame) => {
-                console.error("🚨 Error en WebSocket:", frame);
+                console.error('STOMP error:', frame.headers['message'] ?? frame.body);
             }
         });
-    
+
         this.client.activate();
     }
-    
-    disconnect(): void {
-        if (this.client) {
-            this.client.deactivate();
-            this.connected = false; 
-        }
-    }
 
-    private subscribeToMessages(): void {
-        if (!this.client || !this.client.connected) {
-            console.error("❌ Intentando suscribirse sin conexión WebSocket.");
+    disconnect(): void {
+        if (!this.client) {
             return;
         }
-    
-        this.client.subscribe("/topic/message", (event: Frame) => {
-            console.log("📩 Mensaje recibido:", event.body);
-            this.handleIncomingMessage(event);
+
+        void this.client.deactivate();
+        this.connected$.next(false);
+        this.typing$.next('');
+    }
+
+    sendMessage(message: Message): void {
+        if (!this.client?.connected) {
+            return;
+        }
+
+        const text = message.text?.trim();
+        if (!text) {
+            return;
+        }
+
+        const outgoing: Message = {
+            ...message,
+            id: undefined,
+            username: this.username,
+            type: 'MESSAGE',
+            text,
+            date: new Date()
+        };
+
+        this.client.publish({
+            destination: SEND_MESSAGE_DESTINATION,
+            body: JSON.stringify(outgoing)
         });
     }
-    
 
-    private handleIncomingMessage(event: Frame): void {
-        let receivedMessage: Message = JSON.parse(event.body) as Message;
-        receivedMessage.date = new Date(receivedMessage.date);
-    
-        if (receivedMessage.type === "NEW_USER") {
-            this.userColors.set(receivedMessage.username, receivedMessage.color);
-            console.log(`🎨 Usuario ${receivedMessage.username} conectado con color: ${receivedMessage.color}`);
-            this.messages.push(receivedMessage);
-        } 
-    
-        if (receivedMessage.type === "MESSAGE") { 
-            this.messages.push(receivedMessage);
-            console.log("📌 Mensaje agregado:", receivedMessage);
+    sendTyping(): void {
+        if (!this.client?.connected || !this.username) {
+            return;
         }
-    }
-    
-    
 
-    
-    sendMessage(message: Message): void {
-        if (!this.client || !this.client.connected) {
-            console.error("❌ No se pudo enviar el mensaje. WebSocket desconectado.");
-            return;
-        }
-    
-        if (message.type !== 'MESSAGE' && message.type !== 'NEW_USER') {
-            console.warn("⚠️ Solo se permiten mensajes de chat. Ignorando:", message);
-            return;
-        }
-    
-        if (!message.text.trim()) {
-            console.warn("⚠️ No se puede enviar un mensaje vacío.");
-            return;
-        }
-    
         this.client.publish({
-            destination: "/app/message",
+            destination: SEND_TYPING_DESTINATION,
+            body: this.username
+        });
+    }
+
+    private announceUser(): void {
+        if (!this.client?.connected) {
+            return;
+        }
+
+        const message: Message = {
+            type: 'NEW_USER',
+            username: this.username,
+            text: 'Nuevo usuario conectado',
+            date: new Date(),
+            color: ''
+        };
+
+        this.client.publish({
+            destination: SEND_MESSAGE_DESTINATION,
             body: JSON.stringify(message)
         });
     }
-    
+
+    private requestHistory(): void {
+        this.client?.publish({
+            destination: REQUEST_HISTORY_DESTINATION,
+            body: this.clientId
+        });
+    }
+
+    private subscribeToMessages(): void {
+        this.client?.subscribe(MESSAGE_TOPIC, (event: Frame) => {
+            try {
+                const received = this.toMessage(JSON.parse(event.body) as Message);
+
+                if (received.type === 'NEW_USER') {
+                    this.userColors.set(received.username, received.color);
+                }
+
+                if (received.id && this.messages.some(message => message.id === received.id)) {
+                    return;
+                }
+
+                this.messages.push(received);
+            } catch (error) {
+                console.error('Invalid message received:', error);
+            }
+        });
+    }
+
+    private subscribeToTyping(): void {
+        this.client?.subscribe(TYPING_TOPIC, (event: Frame) => {
+            const typingUser = event.body.trim();
+            if (!typingUser || typingUser === this.username) {
+                return;
+            }
+
+            this.typing$.next(`${typingUser} está escribiendo...`);
+            if (this.typingTimeout) {
+                clearTimeout(this.typingTimeout);
+            }
+
+            this.typingTimeout = setTimeout(() => this.typing$.next(''), 1500);
+        });
+    }
+
+    private subscribeToHistory(): void {
+        this.client?.subscribe(`${HISTORY_TOPIC}${this.clientId}`, (event: Frame) => {
+            try {
+                const history = (JSON.parse(event.body) as Message[]).map(message => this.toMessage(message));
+                const historyIds = new Set(history.map(message => message.id).filter(Boolean));
+                const liveMessages = this.messages.filter(
+                    message => !message.id || !historyIds.has(message.id)
+                );
+
+                this.messages.splice(0, this.messages.length, ...history, ...liveMessages);
+            } catch (error) {
+                console.error('Invalid history received:', error);
+            }
+        });
+    }
+
+    private toMessage(message: Message): Message {
+        return {
+            ...message,
+            date: new Date(message.date)
+        };
+    }
 }
