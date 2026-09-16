@@ -1,5 +1,4 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
 import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
@@ -14,18 +13,29 @@ import {
 } from '../../core/websocket.config';
 import { Message } from '../../model/message';
 
+interface ChatMessageRequest {
+    username: string;
+    text?: string;
+    type: 'MESSAGE' | 'NEW_USER';
+}
+
 @Injectable({
     providedIn: 'root'
 })
 export class ChatService {
     private client?: Client;
     private username = '';
-    private typingTimeout?: ReturnType<typeof setTimeout>;
+    private typingResetTimeout?: ReturnType<typeof setTimeout>;
+    private lastTypingSentAt = 0;
     private readonly clientId = crypto.randomUUID();
 
-    readonly connected$ = new BehaviorSubject<boolean>(false);
-    readonly typing$ = new BehaviorSubject<string>('');
-    readonly messages: Message[] = [];
+    private readonly connectedState = signal(false);
+    private readonly typingState = signal('');
+    private readonly messagesState = signal<Message[]>([]);
+
+    readonly connected = this.connectedState.asReadonly();
+    readonly typing = this.typingState.asReadonly();
+    readonly messages = this.messagesState.asReadonly();
 
     connect(username: string): void {
         const normalizedUsername = username.trim();
@@ -38,16 +48,16 @@ export class ChatService {
             webSocketFactory: () => new SockJS(WEBSOCKET_URL),
             reconnectDelay: 5000,
             onConnect: () => {
-                this.connected$.next(true);
+                this.connectedState.set(true);
                 this.subscribeToMessages();
                 this.subscribeToTyping();
                 this.subscribeToHistory();
                 this.requestHistory();
                 this.announceUser();
             },
-            onDisconnect: () => this.connected$.next(false),
-            onWebSocketClose: () => this.connected$.next(false),
-            onStompError: (frame) => {
+            onDisconnect: () => this.connectedState.set(false),
+            onWebSocketClose: () => this.connectedState.set(false),
+            onStompError: frame => {
                 console.error('STOMP error:', frame.headers['message'] ?? frame.body);
             }
         });
@@ -56,44 +66,41 @@ export class ChatService {
     }
 
     disconnect(): void {
-        if (!this.client) {
+        const client = this.client;
+        if (!client) {
             return;
         }
 
-        void this.client.deactivate();
-        this.connected$.next(false);
-        this.typing$.next('');
+        this.clearTypingState();
+        this.connectedState.set(false);
+        this.username = '';
+        this.client = undefined;
+        void client.deactivate();
     }
 
-    sendMessage(message: Message): void {
-        if (!this.client?.connected) {
+    sendMessage(text: string): void {
+        const normalizedText = text.trim();
+        if (!this.client?.connected || !normalizedText || !this.username) {
             return;
         }
 
-        const text = message.text?.trim();
-        if (!text) {
-            return;
-        }
-
-        const outgoing: Message = {
-            ...message,
-            id: undefined,
+        this.publishJson(SEND_MESSAGE_DESTINATION, {
             username: this.username,
-            type: 'MESSAGE',
-            text,
-            date: new Date()
-        };
-
-        this.client.publish({
-            destination: SEND_MESSAGE_DESTINATION,
-            body: JSON.stringify(outgoing)
-        });
+            text: normalizedText,
+            type: 'MESSAGE'
+        } satisfies ChatMessageRequest);
     }
 
     sendTyping(): void {
         if (!this.client?.connected || !this.username) {
             return;
         }
+
+        const now = Date.now();
+        if (now - this.lastTypingSentAt < 750) {
+            return;
+        }
+        this.lastTypingSentAt = now;
 
         this.client.publish({
             destination: SEND_TYPING_DESTINATION,
@@ -102,22 +109,14 @@ export class ChatService {
     }
 
     private announceUser(): void {
-        if (!this.client?.connected) {
+        if (!this.client?.connected || !this.username) {
             return;
         }
 
-        const message: Message = {
-            type: 'NEW_USER',
+        this.publishJson(SEND_MESSAGE_DESTINATION, {
             username: this.username,
-            text: 'Nuevo usuario conectado',
-            date: new Date(),
-            color: ''
-        };
-
-        this.client.publish({
-            destination: SEND_MESSAGE_DESTINATION,
-            body: JSON.stringify(message)
-        });
+            type: 'NEW_USER'
+        } satisfies ChatMessageRequest);
     }
 
     private requestHistory(): void {
@@ -130,13 +129,14 @@ export class ChatService {
     private subscribeToMessages(): void {
         this.client?.subscribe(MESSAGE_TOPIC, (event: IMessage) => {
             try {
-                const received = this.toMessage(JSON.parse(event.body) as Message);
+                const received = this.toMessage(JSON.parse(event.body));
+                const current = this.messagesState();
 
-                if (received.id && this.messages.some(message => message.id === received.id)) {
+                if (received.id && current.some(message => message.id === received.id)) {
                     return;
                 }
 
-                this.messages.push(received);
+                this.messagesState.set([...current, received]);
             } catch (error) {
                 console.error('Invalid message received:', error);
             }
@@ -150,35 +150,74 @@ export class ChatService {
                 return;
             }
 
-            this.typing$.next(`${typingUser} está escribiendo...`);
-            if (this.typingTimeout) {
-                clearTimeout(this.typingTimeout);
+            this.typingState.set(`${typingUser} está escribiendo...`);
+            if (this.typingResetTimeout) {
+                clearTimeout(this.typingResetTimeout);
             }
 
-            this.typingTimeout = setTimeout(() => this.typing$.next(''), 1500);
+            this.typingResetTimeout = setTimeout(() => this.typingState.set(''), 1500);
         });
     }
 
     private subscribeToHistory(): void {
         this.client?.subscribe(`${HISTORY_TOPIC}${this.clientId}`, (event: IMessage) => {
             try {
-                const history = (JSON.parse(event.body) as Message[]).map(message => this.toMessage(message));
+                const history = (JSON.parse(event.body) as unknown[]).map(message => this.toMessage(message));
                 const historyIds = new Set(history.map(message => message.id).filter(Boolean));
-                const liveMessages = this.messages.filter(
+                const liveMessages = this.messagesState().filter(
                     message => !message.id || !historyIds.has(message.id)
                 );
 
-                this.messages.splice(0, this.messages.length, ...history, ...liveMessages);
+                this.messagesState.set([...history, ...liveMessages]);
             } catch (error) {
                 console.error('Invalid history received:', error);
             }
         });
     }
 
-    private toMessage(message: Message): Message {
+    private publishJson(destination: string, body: ChatMessageRequest): void {
+        this.client?.publish({
+            destination,
+            body: JSON.stringify(body)
+        });
+    }
+
+    private clearTypingState(): void {
+        if (this.typingResetTimeout) {
+            clearTimeout(this.typingResetTimeout);
+            this.typingResetTimeout = undefined;
+        }
+        this.typingState.set('');
+        this.lastTypingSentAt = 0;
+    }
+
+    private toMessage(value: unknown): Message {
+        if (!value || typeof value !== 'object') {
+            throw new Error('Message payload is not an object');
+        }
+
+        const candidate = value as Partial<Record<keyof Message, unknown>>;
+        if (
+            typeof candidate.text !== 'string' ||
+            typeof candidate.username !== 'string' ||
+            (candidate.type !== 'MESSAGE' && candidate.type !== 'NEW_USER') ||
+            typeof candidate.color !== 'string'
+        ) {
+            throw new Error('Message payload has an invalid shape');
+        }
+
+        const date = new Date(candidate.date as string | number | Date);
+        if (Number.isNaN(date.getTime())) {
+            throw new Error('Message payload has an invalid date');
+        }
+
         return {
-            ...message,
-            date: new Date(message.date)
+            id: typeof candidate.id === 'string' ? candidate.id : undefined,
+            text: candidate.text,
+            date,
+            username: candidate.username,
+            type: candidate.type,
+            color: candidate.color
         };
     }
 }
