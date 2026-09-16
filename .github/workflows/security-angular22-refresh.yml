@@ -1,0 +1,71 @@
+name: Angular 22 security refresh
+
+on:
+  push:
+    branches:
+      - security/angular22-refresh
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Angular 19 tree
+        run: npm ci
+
+      - name: Migrate Angular 19 to 20
+        run: |
+          npx ng update @angular/core@20 @angular/cli@20 --allow-dirty
+          npm run build
+
+      - name: Migrate Angular 20 to 21
+        run: |
+          npx ng update @angular/core@21 @angular/cli@21 --allow-dirty
+          npm run build
+
+      - name: Migrate Angular 21 to 22
+        run: |
+          npx ng update @angular/core@22 @angular/cli@22 --allow-dirty
+          npm run build
+
+      - name: Adopt application builder and apply safe fixes
+        run: |
+          npx ng update @angular/cli --name use-application-builder --allow-dirty
+          npm audit fix --ignore-scripts || true
+
+      - name: Verify clean install, build and audit
+        run: |
+          rm -rf node_modules
+          npm ci
+          npm run build
+          npm audit
+
+      - name: Commit refreshed frontend
+        working-directory: .
+        run: |
+          if git diff --quiet -- frontend; then
+            echo "No dependency changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend
+          git commit -m "chore(deps): migrate frontend to Angular 22"
+          git push
