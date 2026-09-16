@@ -16,13 +16,15 @@ import { ChatService } from './chat.service';
 export class ChatComponent implements OnInit, OnDestroy {
 
   connected = false;
-  readonly messages = this.chatService.messages;
+  readonly messages: Message[];
   message: Message = new Message();
   typing = '';
 
   private readonly subscriptions = new Subscription();
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService) {
+    this.messages = chatService.messages;
+  }
 
   ngOnInit(): void {
     this.subscriptions.add(
