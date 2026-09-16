@@ -17,16 +17,23 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<Message> getMessages(Pageable pageable) {
         return messageRepository.findAllByOrderByDateDesc(pageable);
     }
 
     @Override
     @Transactional
-    public void saveMessage(Message message) {
-//        if (message == null || message.getText() == null || message.getText().trim().isEmpty()) {
-//            throw new IllegalArgumentException("El mensaje no puede estar vacío.");
-//        }
-        messageRepository.save(message);
+    public Message saveMessage(Message message) {
+        if (message == null) {
+            throw new IllegalArgumentException("El mensaje no puede ser nulo");
+        }
+        if (message.getUsername() == null || message.getUsername().isBlank()) {
+            throw new IllegalArgumentException("El usuario no puede estar vacío");
+        }
+        if (message.getText() == null || message.getText().isBlank()) {
+            throw new IllegalArgumentException("El mensaje no puede estar vacío");
+        }
+        return messageRepository.save(message);
     }
 }

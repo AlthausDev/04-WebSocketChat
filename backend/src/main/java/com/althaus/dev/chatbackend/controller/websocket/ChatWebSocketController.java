@@ -2,73 +2,114 @@ package com.althaus.dev.chatbackend.controller.websocket;
 
 import com.althaus.dev.chatbackend.domain.model.Message;
 import com.althaus.dev.chatbackend.service.MessageService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+
 import java.time.Instant;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 @Controller
 public class ChatWebSocketController {
 
-    private final String[] colors = {"red", "blue", "green", "orange", "purple", "yellow", "black"};
+    private static final String TYPE_MESSAGE = "MESSAGE";
+    private static final String TYPE_NEW_USER = "NEW_USER";
+    private static final String[] COLORS = {"red", "blue", "green", "orange", "purple", "goldenrod", "black"};
+    private static final Pattern CLIENT_ID_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+    private static final int HISTORY_SIZE = 50;
+
     private final MessageService service;
+    private final SimpMessagingTemplate webSocket;
+    private final Map<String, String> userColors = new ConcurrentHashMap<>();
 
-    @Autowired
-    private SimpMessagingTemplate webSocket;
-
-    public ChatWebSocketController(MessageService service) {
+    public ChatWebSocketController(MessageService service, SimpMessagingTemplate webSocket) {
         this.service = service;
+        this.webSocket = webSocket;
     }
 
     @MessageMapping("/message")
     @SendTo("/topic/message")
     public Message receiveMessage(Message message) {
+        if (message == null) {
+            throw new IllegalArgumentException("El mensaje no puede ser nulo");
+        }
 
+        String username = requireText(message.getUsername(), "username", 40);
         Instant timestamp = Instant.now();
+        String color = colorFor(username);
 
-        if ("NEW_USER".equals(message.getType())) {
+        if (TYPE_NEW_USER.equals(message.getType())) {
             return new Message(
-                    message.getId(),
+                    null,
                     "Nuevo usuario conectado",
                     timestamp,
-                    message.getUsername(),
-                    message.getType(),
-                    colors[new Random().nextInt(colors.length)]
+                    username,
+                    TYPE_NEW_USER,
+                    color
             );
         }
 
-        Message savedMessage = new Message(
-                message.getId(),
-                message.getText(),
+        if (!TYPE_MESSAGE.equals(message.getType())) {
+            throw new IllegalArgumentException("Tipo de mensaje no soportado");
+        }
+
+        String text = requireText(message.getText(), "text", 1000);
+        Message messageToSave = new Message(
+                null,
+                text,
                 timestamp,
-                message.getUsername(),
-                message.getType(),
-                message.getColor()
+                username,
+                TYPE_MESSAGE,
+                color
         );
 
-        service.saveMessage(savedMessage);
-        return savedMessage;
+        return service.saveMessage(messageToSave);
     }
-
 
     @MessageMapping("/typing")
     @SendTo("/topic/typing")
     public String isTyping(String username) {
-        return username.concat(" está escribiendo ...");
+        return requireText(username, "username", 40);
     }
 
     @MessageMapping("/history")
     public void getHistory(String clientId) {
-        int page = 0;
-        int size = 10;
+        if (clientId == null || !CLIENT_ID_PATTERN.matcher(clientId).matches()) {
+            return;
+        }
 
-        var messages = service.getMessages(PageRequest.of(page, size)).getContent();
+        List<Message> messages = new ArrayList<>(
+                service.getMessages(PageRequest.of(0, HISTORY_SIZE)).getContent()
+        );
+        Collections.reverse(messages);
+
         webSocket.convertAndSend("/topic/history/" + clientId, messages);
     }
 
+    private String colorFor(String username) {
+        return userColors.computeIfAbsent(
+                username,
+                ignored -> COLORS[ThreadLocalRandom.current().nextInt(COLORS.length)]
+        );
+    }
+
+    private static String requireText(String value, String field, int maxLength) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " no puede estar vacío");
+        }
+
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw new IllegalArgumentException(field + " supera la longitud máxima permitida");
+        }
+        return normalized;
+    }
 }

@@ -13,7 +13,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private static final String CHAT_ENDPOINT = "/chat";
     private static final String FRONTEND_ORIGIN = "http://localhost:4200";
     private static final String MESSAGE_PREFIX = "/app";
-    private static final String SUBSCRIPTION_PREFIX = "/topic/";
+    private static final String SUBSCRIPTION_PREFIX = "/topic";
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
