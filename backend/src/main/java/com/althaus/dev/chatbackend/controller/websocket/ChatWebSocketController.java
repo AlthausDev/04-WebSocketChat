@@ -12,9 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Controller
@@ -22,13 +20,12 @@ public class ChatWebSocketController {
 
     private static final String TYPE_MESSAGE = "MESSAGE";
     private static final String TYPE_NEW_USER = "NEW_USER";
-    private static final String[] COLORS = {"red", "blue", "green", "orange", "purple", "goldenrod", "black"};
+    private static final String[] COLORS = {"#0d6efd", "#198754", "#6f42c1", "#fd7e14", "#d63384", "#0f766e", "#495057"};
     private static final Pattern CLIENT_ID_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
     private static final int HISTORY_SIZE = 50;
 
     private final MessageService service;
     private final SimpMessagingTemplate webSocket;
-    private final Map<String, String> userColors = new ConcurrentHashMap<>();
 
     public ChatWebSocketController(MessageService service, SimpMessagingTemplate webSocket) {
         this.service = service;
@@ -37,16 +34,17 @@ public class ChatWebSocketController {
 
     @MessageMapping("/message")
     @SendTo("/topic/message")
-    public Message receiveMessage(Message message) {
-        if (message == null) {
+    public Message receiveMessage(ChatMessageRequest request) {
+        if (request == null) {
             throw new IllegalArgumentException("El mensaje no puede ser nulo");
         }
 
-        String username = requireText(message.getUsername(), "username", 40);
+        String username = requireText(request.username(), "username", 40);
+        String type = requireText(request.type(), "type", 20);
         Instant timestamp = Instant.now();
         String color = colorFor(username);
 
-        if (TYPE_NEW_USER.equals(message.getType())) {
+        if (TYPE_NEW_USER.equals(type)) {
             return new Message(
                     null,
                     "Nuevo usuario conectado",
@@ -57,14 +55,13 @@ public class ChatWebSocketController {
             );
         }
 
-        if (!TYPE_MESSAGE.equals(message.getType())) {
+        if (!TYPE_MESSAGE.equals(type)) {
             throw new IllegalArgumentException("Tipo de mensaje no soportado");
         }
 
-        String text = requireText(message.getText(), "text", 1000);
         Message messageToSave = new Message(
                 null,
-                text,
+                requireText(request.text(), "text", 1000),
                 timestamp,
                 username,
                 TYPE_MESSAGE,
@@ -90,15 +87,12 @@ public class ChatWebSocketController {
                 service.getMessages(PageRequest.of(0, HISTORY_SIZE)).getContent()
         );
         Collections.reverse(messages);
-
         webSocket.convertAndSend("/topic/history/" + clientId, messages);
     }
 
-    private String colorFor(String username) {
-        return userColors.computeIfAbsent(
-                username,
-                ignored -> COLORS[ThreadLocalRandom.current().nextInt(COLORS.length)]
-        );
+    private static String colorFor(String username) {
+        int index = Math.floorMod(username.toLowerCase(Locale.ROOT).hashCode(), COLORS.length);
+        return COLORS[index];
     }
 
     private static String requireText(String value, String field, int maxLength) {
