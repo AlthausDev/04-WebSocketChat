@@ -1,12 +1,27 @@
 package com.althaus.dev.chatbackend.service;
 
 import com.althaus.dev.chatbackend.domain.model.Message;
+import com.althaus.dev.chatbackend.domain.repository.MessageRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
-public interface MessageService {
+import java.util.Objects;
 
-    Page<Message> getMessages(Pageable pageable);
+@Service
+public class MessageService {
 
-    Message saveMessage(Message message);
+    private final MessageRepository messageRepository;
+
+    public MessageService(MessageRepository messageRepository) {
+        this.messageRepository = messageRepository;
+    }
+
+    public Page<Message> getMessages(Pageable pageable) {
+        return messageRepository.findAllByOrderByDateDesc(pageable);
+    }
+
+    public Message saveMessage(Message message) {
+        return messageRepository.save(Objects.requireNonNull(message, "message"));
+    }
 }
