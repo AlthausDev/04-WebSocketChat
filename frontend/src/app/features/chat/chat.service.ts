@@ -88,7 +88,7 @@ export class ChatService {
             username: this.username,
             text: normalizedText,
             type: 'MESSAGE'
-        } satisfies ChatMessageRequest);
+        });
     }
 
     sendTyping(): void {
@@ -116,7 +116,7 @@ export class ChatService {
         this.publishJson(SEND_MESSAGE_DESTINATION, {
             username: this.username,
             type: 'NEW_USER'
-        } satisfies ChatMessageRequest);
+        });
     }
 
     private requestHistory(): void {
@@ -163,7 +163,7 @@ export class ChatService {
         this.client?.subscribe(`${HISTORY_TOPIC}${this.clientId}`, (event: IMessage) => {
             try {
                 const history = (JSON.parse(event.body) as unknown[]).map(message => this.toMessage(message));
-                const historyIds = new Set(history.map(message => message.id).filter(Boolean));
+                const historyIds = new Set(history.flatMap(message => message.id ? [message.id] : []));
                 const liveMessages = this.messagesState().filter(
                     message => !message.id || !historyIds.has(message.id)
                 );
@@ -206,7 +206,10 @@ export class ChatService {
             throw new Error('Message payload has an invalid shape');
         }
 
-        const date = new Date(candidate.date as string | number | Date);
+        const date = candidate.date instanceof Date
+            ? new Date(candidate.date.getTime())
+            : new Date(candidate.date as string | number);
+
         if (Number.isNaN(date.getTime())) {
             throw new Error('Message payload has an invalid date');
         }
