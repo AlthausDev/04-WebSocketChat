@@ -5,7 +5,6 @@ import com.althaus.dev.chatbackend.domain.repository.MessageRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MessageServiceImpl implements MessageService {
@@ -17,13 +16,11 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Page<Message> getMessages(Pageable pageable) {
         return messageRepository.findAllByOrderByDateDesc(pageable);
     }
 
     @Override
-    @Transactional
     public Message saveMessage(Message message) {
         if (message == null) {
             throw new IllegalArgumentException("El mensaje no puede ser nulo");

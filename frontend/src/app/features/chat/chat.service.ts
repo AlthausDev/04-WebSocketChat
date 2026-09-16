@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { Client, Frame } from '@stomp/stompjs';
+import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
 import {
@@ -26,7 +26,6 @@ export class ChatService {
     readonly connected$ = new BehaviorSubject<boolean>(false);
     readonly typing$ = new BehaviorSubject<string>('');
     readonly messages: Message[] = [];
-    readonly userColors = new Map<string, string>();
 
     connect(username: string): void {
         const normalizedUsername = username.trim();
@@ -129,13 +128,9 @@ export class ChatService {
     }
 
     private subscribeToMessages(): void {
-        this.client?.subscribe(MESSAGE_TOPIC, (event: Frame) => {
+        this.client?.subscribe(MESSAGE_TOPIC, (event: IMessage) => {
             try {
                 const received = this.toMessage(JSON.parse(event.body) as Message);
-
-                if (received.type === 'NEW_USER') {
-                    this.userColors.set(received.username, received.color);
-                }
 
                 if (received.id && this.messages.some(message => message.id === received.id)) {
                     return;
@@ -149,7 +144,7 @@ export class ChatService {
     }
 
     private subscribeToTyping(): void {
-        this.client?.subscribe(TYPING_TOPIC, (event: Frame) => {
+        this.client?.subscribe(TYPING_TOPIC, (event: IMessage) => {
             const typingUser = event.body.trim();
             if (!typingUser || typingUser === this.username) {
                 return;
@@ -165,7 +160,7 @@ export class ChatService {
     }
 
     private subscribeToHistory(): void {
-        this.client?.subscribe(`${HISTORY_TOPIC}${this.clientId}`, (event: Frame) => {
+        this.client?.subscribe(`${HISTORY_TOPIC}${this.clientId}`, (event: IMessage) => {
             try {
                 const history = (JSON.parse(event.body) as Message[]).map(message => this.toMessage(message));
                 const historyIds = new Set(history.map(message => message.id).filter(Boolean));

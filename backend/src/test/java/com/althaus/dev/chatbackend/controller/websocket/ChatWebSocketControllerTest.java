@@ -8,6 +8,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -52,7 +53,7 @@ class ChatWebSocketControllerTest {
         assertEquals("sam", result.getUsername());
         assertEquals("MESSAGE", result.getType());
         assertNotNull(result.getColor());
-        assertEquals(null, result.getId());
+        assertNull(result.getId());
         verify(service).saveMessage(any());
     }
 
