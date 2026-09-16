@@ -8,7 +8,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -24,13 +23,12 @@ class ChatWebSocketControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(MessageService.class);
-        SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
-        controller = new ChatWebSocketController(service, messagingTemplate);
+        controller = new ChatWebSocketController(service, mock(SimpMessagingTemplate.class));
     }
 
     @Test
     void newUserIsBroadcastWithoutPersisting() {
-        Message incoming = new Message(null, "ignored", null, " sam ", "NEW_USER", "pink");
+        ChatMessageRequest incoming = new ChatMessageRequest(" sam ", "ignored", "NEW_USER");
 
         Message result = controller.receiveMessage(incoming);
 
@@ -45,7 +43,7 @@ class ChatWebSocketControllerTest {
     @Test
     void normalMessageIsNormalizedAndPersisted() {
         when(service.saveMessage(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        Message incoming = new Message("client-supplied-id", "  hola  ", null, "sam", "MESSAGE", "pink");
+        ChatMessageRequest incoming = new ChatMessageRequest("sam", "  hola  ", "MESSAGE");
 
         Message result = controller.receiveMessage(incoming);
 
@@ -53,13 +51,30 @@ class ChatWebSocketControllerTest {
         assertEquals("sam", result.getUsername());
         assertEquals("MESSAGE", result.getType());
         assertNotNull(result.getColor());
-        assertNull(result.getId());
         verify(service).saveMessage(any());
     }
 
     @Test
+    void colorIsStableForTheSameUser() {
+        ChatMessageRequest first = new ChatMessageRequest("Sam", null, "NEW_USER");
+        ChatMessageRequest second = new ChatMessageRequest("sam", null, "NEW_USER");
+
+        assertEquals(
+                controller.receiveMessage(first).getColor(),
+                controller.receiveMessage(second).getColor()
+        );
+    }
+
+    @Test
     void blankMessagesAreRejected() {
-        Message incoming = new Message(null, "   ", null, "sam", "MESSAGE", "black");
+        ChatMessageRequest incoming = new ChatMessageRequest("sam", "   ", "MESSAGE");
+
+        assertThrows(IllegalArgumentException.class, () -> controller.receiveMessage(incoming));
+    }
+
+    @Test
+    void unsupportedTypesAreRejected() {
+        ChatMessageRequest incoming = new ChatMessageRequest("sam", "hola", "SYSTEM");
 
         assertThrows(IllegalArgumentException.class, () -> controller.receiveMessage(incoming));
     }
