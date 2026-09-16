@@ -1,9 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
 
-import { Message } from '../../model/message';
 import { ChatService } from './chat.service';
 
 @Component({
@@ -13,40 +11,28 @@ import { ChatService } from './chat.service';
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css'
 })
-export class ChatComponent implements OnInit, OnDestroy {
+export class ChatComponent implements OnDestroy {
 
-  connected = false;
-  readonly messages: Message[];
-  message: Message = new Message();
-  typing = '';
+  private readonly chatService = inject(ChatService);
 
-  private readonly subscriptions = new Subscription();
+  readonly connected = this.chatService.connected;
+  readonly messages = this.chatService.messages;
+  readonly typing = this.chatService.typing;
 
-  constructor(private readonly chatService: ChatService) {
-    this.messages = chatService.messages;
-  }
-
-  ngOnInit(): void {
-    this.subscriptions.add(
-      this.chatService.connected$.subscribe(connected => this.connected = connected)
-    );
-    this.subscriptions.add(
-      this.chatService.typing$.subscribe(typing => this.typing = typing)
-    );
-  }
+  username = '';
+  text = '';
 
   ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
     this.chatService.disconnect();
   }
 
   connect(): void {
-    const username = this.message.username.trim();
+    const username = this.username.trim();
     if (!username) {
       return;
     }
 
-    this.message.username = username;
+    this.username = username;
     this.chatService.connect(username);
   }
 
@@ -55,15 +41,18 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   onSendMessage(): void {
-    if (!this.message.text?.trim()) {
+    const text = this.text.trim();
+    if (!text) {
       return;
     }
 
-    this.chatService.sendMessage(this.message);
-    this.message.text = '';
+    this.chatService.sendMessage(text);
+    this.text = '';
   }
 
   onTypingEvent(): void {
-    this.chatService.sendTyping();
+    if (this.text.trim()) {
+      this.chatService.sendTyping();
+    }
   }
 }
