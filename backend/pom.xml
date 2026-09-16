@@ -11,14 +11,14 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.althaus.dev.backend.chat</groupId>
-    <artifactId>04-WebSocketChat</artifactId>
+    <groupId>com.althaus.dev</groupId>
+    <artifactId>websocket-chat</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>04-WebSocketChat</name>
-    <description>Real-time chat with Spring WebSocket, STOMP and MongoDB</description>
+    <name>WebSocket Chat</name>
+    <description>Real-time chat exercise with Spring WebSocket, STOMP and MongoDB</description>
 
     <properties>
-        <java.version>23</java.version>
+        <java.version>21</java.version>
     </properties>
 
     <dependencies>
