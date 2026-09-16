@@ -2,12 +2,12 @@
 
 Chat full-stack en tiempo real construido con **Angular**, **STOMP/SockJS**, **Spring Boot** y **MongoDB**.
 
-El objetivo del proyecto es mostrar de forma compacta el flujo completo de una aplicación bidireccional: conexión del cliente, publicación STOMP, difusión de eventos, persistencia de mensajes e historial reciente.
+Es un ejercicio formativo pequeño centrado en una sola idea: seguir el recorrido completo de un mensaje desde el navegador hasta el backend, difundirlo por WebSocket y persistirlo sin esconder el flujo detrás de capas innecesarias.
 
 ## Stack
 
 ### Backend
-- Java 23
+- Java 21
 - Spring Boot 3.4
 - Spring WebSocket / STOMP
 - Spring Data MongoDB
@@ -15,12 +15,12 @@ El objetivo del proyecto es mostrar de forma compacta el flujo completo de una a
 
 ### Frontend
 - Angular 22
+- Angular Signals
 - `@stomp/stompjs`
 - SockJS
-- RxJS
 - Bootstrap 5
 
-## Arquitectura
+## Flujo
 
 ```text
 Angular client
@@ -37,24 +37,24 @@ Spring WebSocket endpoint  /chat
                            MongoDB
 ```
 
-El servidor es la fuente de verdad para los mensajes: asigna la fecha, normaliza los datos recibidos y controla el color asociado a cada usuario. Los identificadores enviados por el cliente no se reutilizan al persistir mensajes.
+El cliente solo envía los datos necesarios. El backend normaliza usuario y texto, asigna la fecha, decide el color de forma determinista y genera el identificador al persistir el mensaje.
 
 ## Comportamiento
 
 - Los mensajes normales se guardan en MongoDB y se difunden a los clientes conectados.
-- Los eventos de conexión (`NEW_USER`) se publican en tiempo real, pero no se persisten.
-- El indicador de escritura usa un canal STOMP independiente.
-- Al conectarse, cada cliente solicita los últimos 50 mensajes mediante un canal de historial específico para su `clientId`.
-- El frontend evita duplicar mensajes ya recibidos cuando llega el historial.
-- La reconexión automática de STOMP está configurada a 5 segundos.
+- Los eventos `NEW_USER` se publican en tiempo real, pero no se persisten.
+- El indicador de escritura usa un destino STOMP independiente y el cliente limita la frecuencia de publicación.
+- Al conectarse, cada cliente solicita los últimos 50 mensajes mediante un canal de historial asociado a su `clientId`.
+- El frontend valida los payloads recibidos y evita duplicar mensajes cuando se mezcla historial con tráfico en vivo.
+- STOMP intenta reconectar automáticamente cada 5 segundos.
 
 ## Puesta en marcha
 
 ### Requisitos
 
-- JDK 23
+- JDK 21
 - Node.js y npm
-- MongoDB en `localhost:27017`
+- MongoDB
 
 ### Backend
 
@@ -70,6 +70,14 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
+Por defecto el backend usa:
+
+```text
+mongodb://localhost:27017/websocket_chat
+```
+
+Puede sobrescribirse con `MONGODB_URI`. El origen permitido para el frontend es `http://localhost:4200` y puede cambiarse con `CHAT_ALLOWED_ORIGIN`.
+
 ### Frontend
 
 ```bash
@@ -80,26 +88,29 @@ npm start
 
 Después abre `http://localhost:4200`.
 
-La URL WebSocket por defecto es `http://localhost:8080/chat` y se define en `frontend/src/app/core/websocket.config.ts`.
+La URL WebSocket se mantiene en `frontend/src/app/core/websocket.config.ts` y por defecto apunta a `http://localhost:8080/chat`.
 
 ## Estructura
 
 ```text
 backend/
-  src/main/java/.../config        configuración WebSocket
-  src/main/java/.../controller    endpoints STOMP
-  src/main/java/.../domain        modelo y repositorio MongoDB
-  src/main/java/.../service       lógica de persistencia
+  src/main/java/com/althaus/dev/chatbackend/
+    config/                 configuración STOMP/WebSocket
+    controller/websocket/   entrada y salida del protocolo
+    domain/                 documento y repositorio MongoDB
+    service/                persistencia de mensajes
 
 frontend/
-  src/app/core                    configuración y destinos STOMP
-  src/app/features/chat           UI y cliente WebSocket
-  src/app/model                   modelo compartido en el frontend
+  src/app/core/             configuración y destinos STOMP
+  src/app/features/chat/    UI y cliente WebSocket
+  src/app/model/            tipos del frontend
 ```
 
-## Alcance
+## Decisiones de diseño
 
-Es un proyecto formativo deliberadamente pequeño. No implementa autenticación, salas privadas ni presencia distribuida; el broker es el broker simple en memoria de Spring. El foco está en la comunicación en tiempo real y en mantener claro el recorrido de un mensaje de extremo a extremo.
+El proyecto evita varias capas que no aportan nada para este tamaño: no hay interfaz de servicio decorativa, controlador REST vacío ni DTO de persistencia reutilizado como entrada WebSocket. La entrada del protocolo tiene su propio request y el modelo de MongoDB queda del lado del dominio/persistencia.
+
+Tampoco pretende ser un chat de producción. No incluye autenticación, salas privadas, autorización por destino, presencia distribuida ni un broker externo. El broker simple de Spring es suficiente para el objetivo del ejercicio.
 
 ## Licencia
 
