@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from './chat.service';
 import { Message } from '../../model/message';
@@ -8,6 +8,7 @@ import { Message } from '../../model/message';
   selector: 'app-chat',
   standalone: true,
   imports: [FormsModule, CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './chat.component.html'
 })
 export class ChatComponent implements OnInit {
