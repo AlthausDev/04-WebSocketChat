@@ -1,0 +1,36 @@
+name: Regenerar lockfile Angular
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: maintenance/angular22-piscina-20261020
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regenerar dependencias
+        working-directory: frontend
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci
+          npm run build
+          npm test -- --watch=false --browsers=ChromeHeadless
+      - name: Comprobar piscina
+        working-directory: frontend
+        run: |
+          node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p && /^5\\.(0|1|2)\\./.test(p.version)) process.exit(1)"
+      - name: Guardar lockfile regenerado
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add frontend/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "build: regenerar lockfile Angular con npm"
+            git push origin HEAD:maintenance/angular22-piscina-20261020
+          fi
