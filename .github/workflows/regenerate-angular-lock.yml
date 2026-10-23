@@ -1,5 +1,11 @@
 name: Regenerar lockfile Angular
 on:
+  push:
+    branches:
+      - maintenance/angular22-piscina-20261020
+    paths:
+      - 'frontend/package.json'
+      - '.github/workflows/regenerate-angular-lock.yml'
   workflow_dispatch:
 permissions:
   contents: write
@@ -24,7 +30,7 @@ jobs:
       - name: Comprobar piscina
         working-directory: frontend
         run: |
-          node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p && /^5\\.(0|1|2)\\./.test(p.version)) process.exit(1)"
+          node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p){const [major,minor]=p.version.split('.').map(Number); if(major===5 && minor<=2) process.exit(1)}"
       - name: Guardar lockfile regenerado
         run: |
           git config user.name github-actions[bot]
