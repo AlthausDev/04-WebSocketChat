@@ -19,71 +19,45 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
       - name: Run tests
         run: bash ./mvnw -B test
 
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Regenerate lockfile on maintenance PR
-        if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
-        run: npm install --package-lock-only --ignore-scripts
-
       - name: Install dependencies
         run: npm ci
       - name: Verify dependency tree
         run: npm ls --depth=0
-
       - name: Build
         run: npm run build
-
-      - name: Frontend tests
-        if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
+      - name: Frontend tests if present
         run: |
           if find src -name '*.spec.ts' -print -quit | grep -q .; then
             npm test -- --watch=false --browsers=ChromeHeadless
           else
-            echo 'No hay pruebas .spec.ts; validación limitada a compilación'
+            echo 'Sin pruebas .spec.ts; compilación verificada'
           fi
-
-      - name: Validate fixed Piscina
-        if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
+      - name: Verify Piscina version
         run: |
           node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p){const [major,minor]=p.version.split('.').map(Number); if(major===5 && minor<=2) process.exit(1)}"
-
-      - name: Commit validated lockfile
-        if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m 'build: regenerar lockfile Angular con npm'
-            git push origin HEAD:maintenance/angular22-piscina-20261020
-          fi
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
