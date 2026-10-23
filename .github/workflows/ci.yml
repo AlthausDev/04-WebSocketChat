@@ -65,7 +65,12 @@ jobs:
 
       - name: Frontend tests
         if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
-        run: npm test -- --watch=false --browsers=ChromeHeadless
+        run: |
+          if find src -name '*.spec.ts' -print -quit | grep -q .; then
+            npm test -- --watch=false --browsers=ChromeHeadless
+          else
+            echo 'No hay pruebas .spec.ts; validación limitada a compilación'
+          fi
 
       - name: Validate fixed Piscina
         if: github.event_name == 'pull_request' && github.head_ref == 'maintenance/angular22-piscina-20261020'
