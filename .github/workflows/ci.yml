@@ -56,3 +56,21 @@ jobs:
           node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p){const [major,minor]=p.version.split('.').map(Number); if(major===5 && minor<=2) process.exit(1)}"
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Report all dependency advisories (including development)
+        run: |
+          status=0
+          npm audit --json > audit-report.json || status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "npm audit failed to run (exit $status)"
+            exit "$status"
+          fi
+          node <<'NODE'
+          const audit = require('./audit-report.json');
+          const counts = audit.metadata?.vulnerabilities ?? {};
+          console.log('npm audit severity counts:', JSON.stringify(counts));
+          for (const [name, issue] of Object.entries(audit.vulnerabilities ?? {})) {
+            if (issue.severity !== 'high' && issue.severity !== 'critical') continue;
+            const causes = issue.via.filter(v => typeof v === 'object').map(v => v.title).join('; ');
+            console.log(name + ': ' + issue.severity + '; direct=' + issue.isDirect + '; range=' + issue.range + '; causes=' + causes + '; fix=' + JSON.stringify(issue.fixAvailable));
+          }
+          NODE
