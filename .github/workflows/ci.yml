@@ -49,13 +49,8 @@ jobs:
         run: npm ls --depth=0
       - name: Build
         run: npm run build
-      - name: Frontend tests if present
-        run: |
-          if find src -name '*.spec.ts' -print -quit | grep -q .; then
-            npm test -- --watch=false --browsers=ChromeHeadless
-          else
-            echo 'Sin pruebas .spec.ts; compilación verificada'
-          fi
+      - name: Frontend unit tests
+        run: npm test -- --watch=false --browsers=ChromeHeadless
       - name: Verify Piscina version
         run: |
           node -e "const l=require('./package-lock.json'); const p=l.packages['node_modules/piscina']; if(p){const [major,minor]=p.version.split('.').map(Number); if(major===5 && minor<=2) process.exit(1)}"
